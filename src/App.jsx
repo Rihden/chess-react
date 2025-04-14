@@ -53,6 +53,7 @@ function App() {
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [lastMove, setLastMove] = useState(null);
   const [currentTurn, setCurrentTurn] = useState("white");
+  const [promoting, setPromoting] = useState(false);
 
   const [whitePlayer, setWhitePlayer] = useState({
     isChecked: false,
@@ -129,7 +130,7 @@ function App() {
     return piece1 && piece2 && piece1.color == piece2.color;
   };
 
-  const movePiece = function (targetSquare) {
+  const movePiece = async function (targetSquare) {
     const move = {
       startingSquare: selectedSquare,
       newSquare: targetSquare,
@@ -142,8 +143,6 @@ function App() {
 
     // Handle castling
     if (move.piece.type === "K") {
-      console.log("It's a king");
-
       //Short side
       if (move.startingSquare.file == move.newSquare.file - 2) {
         // Change rook spot
@@ -191,12 +190,23 @@ function App() {
       }
     }
 
+    // Set last move
+    setLastMove(move);
+
+    // Handle promotion
+    if (move.piece.type === "P") {
+      if (move.newSquare.rank === 0 || move.newSquare.rank === 7) {
+        setPromoting(true);
+        // Stop execution until user promotes
+        return;
+      }
+    }
+
     // Move actual piece
     boardStateCopy[targetSquare.rank][targetSquare.file] =
       boardState[selectedSquare.rank][selectedSquare.file];
     boardStateCopy[selectedSquare.rank][selectedSquare.file] = null;
 
-    setLastMove(move);
     resetSelectedPiece();
 
     blackPlayerCopy.isChecked = isInCheck(boardStateCopy, "black");
@@ -206,6 +216,18 @@ function App() {
     setWhitePlayer(whitePlayerCopy);
     setBoardState(boardStateCopy);
     switchTurn();
+  };
+
+  const promotePawn = function (type) {
+    // Update selected square to new piece type to
+    const selectedSquareCopy = { ...selectedSquare };
+    selectedSquareCopy.piece.type = type;
+    setSelectedSquare(selectedSquareCopy);
+    // Move piece to new position
+    movePiece(lastMove.newSquare);
+
+    // Hide promoting panel
+    setPromoting(false);
   };
 
   const canCastle = function (color, type) {
@@ -794,7 +816,7 @@ function App() {
     // console.log(rankIndex, fileIndex);
 
     // If empty square do nothing
-    if (!isOccupied(rankIndex, fileIndex, boardState)) {
+    if (!isOccupied(rankIndex, fileIndex, boardState) || promoting) {
       resetSelectedPiece();
       return;
     }
@@ -965,6 +987,89 @@ function App() {
               </div>
             );
           })}
+
+          {matchResult && (
+            <div className="match-over-container">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                {matchResult == "white" ? (
+                  <>
+                    <div>
+                      <img src={`/wp.png`} alt="" className="icon" />
+                    </div>
+                    <div>
+                      <div>
+                        <span>
+                          <strong>White Won</strong>
+                        </span>
+                      </div>
+                      <div>
+                        <span>Checkmate</span>
+                      </div>
+                    </div>
+                  </>
+                ) : matchResult == "black" ? (
+                  <>
+                    <div>
+                      <img src={`/bp.png`} alt="" className="icon" />
+                    </div>
+                    <div>
+                      <div>
+                        <span>
+                          <strong>Black Won</strong>
+                        </span>
+                      </div>
+                      <div>Checkmate</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <span>
+                        <strong>Stalemate</strong>
+                      </span>
+                    </div>
+                    <div>game over</div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          {promoting && (
+            <div className="promoting-container">
+              <div className="promoting-piece">
+                <img
+                  src={`/${lastMove.piece.color[0]}q.png`}
+                  alt=""
+                  className="icon"
+                  onClick={() => promotePawn("Q")}
+                />
+                <img
+                  src={`/${lastMove.piece.color[0]}r.png`}
+                  alt=""
+                  className="icon"
+                  onClick={() => promotePawn("R")}
+                />
+                <img
+                  src={`/${lastMove.piece.color[0]}b.png`}
+                  alt=""
+                  className="icon"
+                  onClick={() => promotePawn("B")}
+                />
+                <img
+                  src={`/${lastMove.piece.color[0]}n.png`}
+                  alt=""
+                  className="icon"
+                  onClick={() => promotePawn("N")}
+                />
+              </div>
+            </div>
+          )}
         </div>
         <div
           className={`player-name-container ${
@@ -975,20 +1080,6 @@ function App() {
         >
           White Player
         </div>
-        {matchResult && (
-          <div className="match-over-container">
-            <div>Game Over</div>
-            <div>
-              {matchResult == "white" ? (
-                <div>White wins</div>
-              ) : matchResult == "black" ? (
-                <div>Black wins</div>
-              ) : (
-                <div>Stalemate</div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </>
   );
